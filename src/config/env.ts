@@ -6,7 +6,18 @@ const emptyToUndefined = (v: unknown) => (v === "" ? undefined : v);
 const schema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().positive().default(5000),
-  MONGODB_URI: z.string().min(1, "MONGODB_URI is required"),
+  MONGODB_URI: z
+    .string()
+    .trim()
+    .min(1, "MONGODB_URI is required")
+    .refine(
+      (v) => /^mongodb(\+srv)?:\/\//.test(v),
+      "MONGODB_URI must start with mongodb+srv:// (Atlas) or mongodb:// (local)",
+    )
+    .refine(
+      (v) => !/[<>]/.test(v),
+      "MONGODB_URI still contains placeholder text such as <user>, <password> or <cluster>. Paste your real Atlas connection string and remove the < > brackets",
+    ),
   MONGODB_DB_NAME: z.string().min(1).default("studiospace"),
   CLIENT_URL: z.string().min(1, "CLIENT_URL is required"),
   JWKS_URL: z.string().url("JWKS_URL must be a valid URL"),
