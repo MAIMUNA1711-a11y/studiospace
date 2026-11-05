@@ -30,6 +30,18 @@ npm run build && npm start
 
 Tests need a MongoDB instance. By default they use `mongodb://127.0.0.1:27018` and a throwaway database named `studiospace_test_<pid>` (dropped afterwards). Override with `TEST_MONGODB_URI`.
 
+### First-time MongoDB Atlas setup (beginner steps)
+
+1. Create a free account at <https://www.mongodb.com/cloud/atlas/register> and create a **free (M0) cluster**.
+2. **Database Access** → *Add New Database User* → choose a username and password (letters/numbers only is easiest). Give it *Read and write to any database*.
+3. **Network Access** → *Add IP Address* → *Add Current IP Address* (for deployment on Render also add `0.0.0.0/0`).
+4. **Database** → *Connect* → *Drivers* → copy the `mongodb+srv://...` string.
+5. Create your private env file: `copy .env.example .env` (Windows cmd) or `cp .env.example .env`. Open it in **VS Code** (Notepad may save it as `.env.txt`).
+6. Set `MONGODB_URI` to the copied string with `<password>` replaced by your real password (remove the `< >` brackets). Optionally add the database name before the `?`, e.g. `...mongodb.net/studiospace?retryWrites=...`.
+7. Run `npm run seed` then `npm run dev`. You should see `StudioSpace API listening on port 5000`.
+
+Common errors: `EBADNAME` = placeholder text still in `MONGODB_URI`; `bad auth` = wrong username/password; `MongoServerSelectionError` = your IP is not allowed in Network Access.
+
 ### Environment variables
 
 | Variable | Purpose |
