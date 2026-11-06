@@ -1,27 +1,22 @@
 import type { Request, RequestHandler } from "express";
-import { env } from "../config/env";
 import { verifyToken } from "../utils/jwt";
 import { ApiError } from "../utils/ApiError";
 
 function extractToken(req: Request): string | undefined {
-  // 1. Authorization header check (Bearer token)
+  // 1. Authorization header (Bearer token)
   const header = req.headers.authorization;
   if (header?.startsWith("Bearer ")) {
     const t = header.slice(7).trim();
     if (t) return t;
   }
 
-  // 2. Custom JWT Cookie check from env
-  if (env.JWT_COOKIE_NAME && req.cookies?.[env.JWT_COOKIE_NAME]) {
-    const cookieToken = req.cookies[env.JWT_COOKIE_NAME];
-    if (typeof cookieToken === "string" && cookieToken) return cookieToken;
-  }
+  const cookies = (req as any).cookies || {};
 
-  // 3. Better Auth Standard & Secure Cookies check
+  // 2. Read Better Auth session cookies
   const betterAuthToken =
-    req.cookies?.["better-auth.session_token"] ||
-    req.cookies?.["__Secure-better-auth.session_token"] ||
-    req.cookies?.["session_token"];
+    cookies["better-auth.session_token"] ||
+    cookies["__Secure-better-auth.session_token"] ||
+    cookies["session_token"];
 
   if (typeof betterAuthToken === "string" && betterAuthToken) {
     return betterAuthToken;
@@ -30,22 +25,24 @@ function extractToken(req: Request): string | undefined {
   return undefined;
 }
 
-/** Rejects with 401 unless a valid JWT is supplied. Sets req.user from the verified claims. */
 export const authenticate: RequestHandler = async (req, _res, next) => {
   const token = extractToken(req);
-  if (!token) return next(ApiError.unauthorized());
-  
+
+  // If no token at all, reject immediately
+  if (!token) return next(ApiError.unauthorized("No authentication token provided"));
+
   try {
-    req.user = await verifyToken(token);
+    const user = await verifyToken(token);
+    (req as any).user = user;
     next();
-  } catch {
-    // Deliberately generic: do not reveal why verification failed.
-    next(ApiError.unauthorized("Invalid or expired token"));
+  } catch (err: any) {
+    // Return unauthorized error
+    next(ApiError.unauthorized(err?.message || "Invalid or expired token"));
   }
 };
 
-/** Use after `authenticate` inside controllers/services. */
 export function requireUser(req: Request) {
-  if (!req.user) throw ApiError.unauthorized();
-  return req.user;
+  const user = (req as any).user;
+  if (!user) throw ApiError.unauthorized("Authentication required");
+  return user;
 }
