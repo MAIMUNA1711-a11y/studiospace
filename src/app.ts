@@ -14,21 +14,40 @@ export function createApp() {
 
   app.set("trust proxy", 1); // Render/Vercel sit behind a proxy
   app.disable("x-powered-by");
-  app.use(helmet());
+  
+  // Helmet configuration allowing cross-origin authorization
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: { policy: "cross-origin" },
+    })
+  );
+
+  // Dynamic Allowed Origins
+  const allowedOrigins = [
+    "http://localhost:3000",
+    "https://studiospace-client-mim-57e8.vercel.app",
+    env.CLIENT_URL,
+    ...env.allowedOrigins,
+  ].filter(Boolean) as string[];
 
   app.use(
     cors({
       origin(origin, cb) {
-        // No Origin header = server-to-server (e.g. the Next.js proxy) or curl: allow.
-        if (!origin || env.allowedOrigins.includes(origin)) return cb(null, true);
+        // Allow server-to-server, curl, matching origins, or any Vercel domain
+        if (!origin || allowedOrigins.includes(origin) || origin.endsWith(".vercel.app")) {
+          return cb(null, true);
+        }
         cb(null, false);
       },
       credentials: true,
       methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-      allowedHeaders: ["Content-Type", "Authorization"],
+      allowedHeaders: ["Content-Type", "Authorization", "Cookie", "X-Requested-With"],
       maxAge: 600,
-    }),
+    })
   );
+
+  // Explicit Pre-flight OPTIONS Handler
+  app.options("*", cors());
 
   app.use(express.json({ limit: "100kb" }));
   app.use(cookieParser());
@@ -41,7 +60,7 @@ export function createApp() {
       standardHeaders: "draft-7",
       legacyHeaders: false,
       message: { success: false, message: "Too many requests, please try again later." },
-    }),
+    })
   );
 
   app.get("/", (_req, res) => res.json({ success: true, name: "StudioSpace API", status: "ok" }));
